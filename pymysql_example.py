@@ -42,10 +42,10 @@ def get_connection(autocommit: bool = True) -> Connection:
 def recreate_table() -> None:
     with get_connection() as connection:
         with connection.cursor() as cur:
-            cur.execute("DROP TABLE IF EXISTS player;")
+            cur.execute("DROP TABLE IF EXISTS players;")
             cur.execute(
                 """
-                CREATE TABLE player (
+                CREATE TABLE players (
                     `id` VARCHAR(36),
                     `coins` INTEGER,
                     `goods` INTEGER, PRIMARY KEY (`id`)
@@ -55,25 +55,25 @@ def recreate_table() -> None:
 
 
 def create_player(cursor: DictCursor, player: tuple) -> None:
-    cursor.execute("INSERT INTO player (id, coins, goods) VALUES (%s, %s, %s)", player)
+    cursor.execute("INSERT INTO players (id, coins, goods) VALUES (%s, %s, %s)", player)
 
 
 def get_player(cursor: DictCursor, player_id: str) -> dict:
-    cursor.execute("SELECT id, coins, goods FROM player WHERE id = %s", (player_id,))
+    cursor.execute("SELECT id, coins, goods FROM players WHERE id = %s", (player_id,))
     return cursor.fetchone()
 
 
 def get_players_with_limit(cursor: DictCursor, limit: int) -> tuple:
-    cursor.execute("SELECT id, coins, goods FROM player LIMIT %s", (limit,))
+    cursor.execute("SELECT id, coins, goods FROM players LIMIT %s", (limit,))
     return cursor.fetchall()
 
 
 def bulk_create_player(cursor: DictCursor, players: list[tuple]) -> None:
-    cursor.executemany("INSERT INTO player (id, coins, goods) VALUES (%s, %s, %s)", players)
+    cursor.executemany("INSERT INTO players (id, coins, goods) VALUES (%s, %s, %s)", players)
 
 
 def get_count(cursor: DictCursor) -> int:
-    cursor.execute("SELECT count(*) FROM player")
+    cursor.execute("SELECT count(*) FROM players")
     return cursor.fetchone()["count(*)"]
 
 
@@ -114,14 +114,14 @@ def simple_example() -> None:
 def trade(connection: Connection, sell_id: str, buy_id: str, amount: int, price: int) -> None:
     # This function should be called in a transaction.
     with connection.cursor() as cursor:
-        cursor.execute("SELECT coins, goods FROM player WHERE id = %s FOR UPDATE", (sell_id,))
+        cursor.execute("SELECT coins, goods FROM players WHERE id = %s FOR UPDATE", (sell_id,))
         seller = cursor.fetchone()
         if seller["goods"] < amount:
             print(f"sell player {sell_id} goods not enough")
             connection.rollback()
             return
 
-        cursor.execute("SELECT coins, goods FROM player WHERE id = %s FOR UPDATE", (buy_id,))
+        cursor.execute("SELECT coins, goods FROM players WHERE id = %s FOR UPDATE", (buy_id,))
         buyer = cursor.fetchone()
         if buyer["coins"] < price:
             print(f"buy player {buy_id} coins not enough")
@@ -129,7 +129,7 @@ def trade(connection: Connection, sell_id: str, buy_id: str, amount: int, price:
             return
 
         try:
-            update_player_sql = "UPDATE player set goods = goods + %s, coins = coins + %s WHERE id = %s"
+            update_player_sql = "UPDATE players set goods = goods + %s, coins = coins + %s WHERE id = %s"
             # deduct the goods of seller, and raise his/her the coins
             cursor.execute(update_player_sql, (-amount, price, sell_id))
             # deduct the coins of buyer, and raise his/her the goods
